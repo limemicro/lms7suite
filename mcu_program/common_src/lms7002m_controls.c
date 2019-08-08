@@ -157,35 +157,82 @@ float_type GetFrequencyCGEN()
     return dMul * (((gINT>>4) + 1 + gFRAC/1048576.0));
 }
 
+// SetFrequencyCGEN is to check three feed forward divider codes: good_guess-1, good_guess and good_guess+1.
+// Use the code which results in csw closest to the middle value(128) as we did in case of selecting VCO for SX PLLs
 uint8_t SetFrequencyCGEN(float_type freq)
 {
-    float_type dFvco;
-    float_type intpart;
-    //VCO frequency selection according to F_CLKH
-    {
+    uint8_t iHdiv;        // We need it in the loop
+    bool canDeliver= false;
+    uint8_t xdata bestDIV;    // Best feed forward divider value
+    uint8_t  xdata bestCSW;    // Best VCO cap switch code
+    uint16_t xdata bestINT;    // Best feed back divider integer part
+    uint32_t xdata bestFRAC;    // Best feed back divider fractional part
+
+    {   // Calculate good guess value
         uint8_t iHdiv_high = (2.94e9/2 / freq)-1;
         uint8_t iHdiv_low = (1.93e9/2 / freq);
-        uint8_t iHdiv = (iHdiv_low + iHdiv_high)/2;
-        dFvco = 2 * (iHdiv+1) * freq;
-        Modify_SPI_Reg_bits(DIV_OUTCH_CGEN, iHdiv);
+        iHdiv = (iHdiv_low + iHdiv_high)/2; // good_guess value
+            if(iHdiv != 0) iHdiv--;         // search starts with good_guess-1
     }
-    //Integer division
-    intpart = dFvco/RefClk;
-    Modify_SPI_Reg_bits(INT_SDM_CGEN, intpart - 1); //INT_SDM_CGEN
-    //Fractional division
-    {
-        const float_type dFrac = intpart - (uint32_t)(dFvco/RefClk);
-        const uint32_t gFRAC = (uint32_t)(dFrac * 1048576);
-        Modify_SPI_Reg_bits(0x0087, MSB_LSB(15, 0), gFRAC&0xFFFF); //INT_SDM_CGEN[15:0]
-        Modify_SPI_Reg_bits(0x0088, MSB_LSB(3, 0), gFRAC>>16); //INT_SDM_CGEN[19:16]
+
+    {   // Try three codes and find the best
+        float_type dFvco;
+        uint16_t intpart;
+        uint32_t fracpart;
+        float_type div;
+        uint8_t i=0;
+
+        uint8_t bestScore = 255; // best is closest to 0
+        for(i=0; i<3; i++)
+        {
+            // Required VCO frequency according to F_CLKH
+            dFvco = 2 * (iHdiv+1) * freq;
+
+            // Setting Delta/Sigma parameters
+            div = dFvco/RefClk;           // Fractional-N FB divider value
+            intpart = (uint16_t)(div);    // Integer part
+            fracpart = (uint32_t)(1048576 * (div - (float_type)(intpart))); // Fractional part
+
+            Modify_SPI_Reg_bits(INT_SDM_CGEN, intpart-1); //INT_SDM_CGEN
+            Modify_SPI_Reg_bits(0x0087, MSB_LSB(15, 0), fracpart & 0xFFFF); //FRAC_SDM_CGEN[15:0]
+            Modify_SPI_Reg_bits(0x0088, MSB_LSB(3, 0), fracpart >> 16);     //FRAC_SDM_CGEN[19:16]
+            Modify_SPI_Reg_bits(DIV_OUTCH_CGEN, iHdiv);
+
+            if( TuneVCO(VCO_CGEN) == MCU_NO_ERROR)
+            {
+                const uint8_t csw = Get_SPI_Reg_bits(CSW_VCO_CGEN); // Get cap code set by TuneVCO()
+                const uint8_t score = abs(csw - 128);
+                if(score < bestScore)    // Are we better than previous codes
+                {
+                    bestScore = score;
+                    bestDIV = iHdiv;
+                    bestCSW = csw;
+                    bestINT = intpart;
+                    bestFRAC = fracpart;
+                }
+                canDeliver = true;
+            }
+            iHdiv++;
+        }
     }
 
 #if VERBOSE
-    //printf("CGEN: Freq=%g MHz, VCO=%g GHz, INT=%i, FRAC=%i, DIV_OUTCH_CGEN=%i\n", freq/1e6, dFvco/1e9, gINT, gFRAC, iHdiv);
+    //printf("CGEN: Freq=%g MHz, VCO=%g GHz, INT=%i, FRAC=%i, DIV_OUTCH_CGEN=%i\n", freq/1e6, 2*(bestDIV+1)*freq/1e9, intpart, bestFRAC, bestDIV);
 #endif // NDEBUG
-    if(TuneVCO(VCO_CGEN) != 0)
+    if( canDeliver == false )
         return MCU_CGEN_TUNE_FAILED;
-    return 0;
+
+    Modify_SPI_Reg_bits(INT_SDM_CGEN, bestINT-1); //INT_SDM_CGEN
+    Modify_SPI_Reg_bits(0x0087, MSB_LSB(15, 0), bestFRAC & 0xFFFF); //FRAC_SDM_CGEN[15:0]
+    Modify_SPI_Reg_bits(0x0088, MSB_LSB(3, 0), bestFRAC >> 16);     //FRAC_SDM_CGEN[19:16]
+    Modify_SPI_Reg_bits(DIV_OUTCH_CGEN, bestDIV);
+
+    if( TuneVCO(VCO_CGEN) == MCU_ERROR)
+        return MCU_CGEN_TUNE_FAILED;
+    else
+        return MCU_NO_ERROR;
+    Modify_SPI_Reg_bits(0x008B, MSB_LSB(8,1), bestCSW);
+    return MCU_NO_ERROR;
 }
 
 float_type GetReferenceClk_TSP_MHz(bool tx)
@@ -334,15 +381,19 @@ uint8_t TuneVCO(bool SX) // 0-cgen, 1-SXR, 2-SXT
         Modify_SPI_Reg_bits(0x0086, MSB_LSB(2, 1), 0); //activate VCO and comparator
     }
 #ifndef __cplusplus
-    gComparatorDelayCounter = 0xFFFF - (uint16_t)((0.0003/12)*RefClk); // ~300us
+    // works in most cases with ~300us, but some boards need more to avoid SXR,CGEN tune failures
+    gComparatorDelayCounter = 0xFFFF - (uint16_t)((0.0016/12)*RefClk); // ~1600us
 #endif
     //check if lock is within VCO range
     Modify_SPI_Reg_bits(addrCSW_VCO, msblsb, 0);
     if(ReadCMP(SX) == 3) //VCO too high
         return MCU_ERROR;
-    Modify_SPI_Reg_bits(addrCSW_VCO, msblsb, 255);
-    if(ReadCMP(SX) == 0) //VCO too low
-        return MCU_ERROR;
+
+    // Modify_SPI_Reg_bits(addrCSW_VCO, msblsb, 255);
+    // if(ReadCMP(SX) == 0)
+    //    return MCU_ERROR;
+    // Reason: this produced MCU error 2, CGEN tune failed, which happens random on one board.
+    // This produced also MCU error 3: SXR tune failed, on other board
 
     //search intervals [0-127][128-255]
     {
@@ -380,7 +431,9 @@ uint8_t TuneVCO(bool SX) // 0-cgen, 1-SXR, 2-SXT
         uint8_t cswValue;
         //compare which interval is wider
         {
-            if(cswSearch[1].hasLock && (cswSearch[1].high-cswSearch[1].low >= cswSearch[0].high-cswSearch[0].low))
+            if(cswSearch[0].high == 127 && cswSearch[1].low == 128)
+                cswValue = cswSearch[0].low +((cswSearch[1].high-cswSearch[0].low) >> 1);
+            else if(cswSearch[1].hasLock && (cswSearch[1].high-cswSearch[1].low >= cswSearch[0].high-cswSearch[0].low))
                 cswValue = cswSearch[1].low +((cswSearch[1].high-cswSearch[1].low) >> 1);
             else
                 cswValue = cswSearch[0].low +((cswSearch[0].high-cswSearch[0].low) >> 1);
