@@ -149,6 +149,25 @@ void ClockLogicResets()
     SPI_write(0x0020, reg);
 }
 
+/** @brief Performs VCO tuning operations for CLKGEN, SXR, SXT modules
+    @param module module selection for tuning 0-cgen, 1-SXR, 2-SXT
+    @return 0-success, other-failure
+*/
+static uint8_t ReadCMP(const bool SX)
+{
+#ifdef __cplusplus
+    std::this_thread::sleep_for(std::chrono::microseconds(100));
+#else
+    TR0 = 0; //stop timer 0
+    TH0 = (gComparatorDelayCounter >> 8);
+    TL0 = (gComparatorDelayCounter & 0xFF);
+    TF0 = 0; // clear overflow
+    TR0 = 1; //start timer 0
+    while( !TF0 ); // wait for timer overflow
+#endif
+    return (uint8_t)Get_SPI_Reg_bits(SX ? 0x0123 : 0x008C, MSB_LSB(13, 12));
+}
+
 float_type GetFrequencyCGEN()
 {
     const float_type dMul = (RefClk/2.0)/(Get_SPI_Reg_bits(DIV_OUTCH_CGEN)+1); //DIV_OUTCH_CGEN
@@ -226,12 +245,10 @@ uint8_t SetFrequencyCGEN(float_type freq)
     Modify_SPI_Reg_bits(0x0087, MSB_LSB(15, 0), bestFRAC & 0xFFFF); //FRAC_SDM_CGEN[15:0]
     Modify_SPI_Reg_bits(0x0088, MSB_LSB(3, 0), bestFRAC >> 16);     //FRAC_SDM_CGEN[19:16]
     Modify_SPI_Reg_bits(DIV_OUTCH_CGEN, bestDIV);
-
-    if( TuneVCO(VCO_CGEN) == MCU_ERROR)
-        return MCU_CGEN_TUNE_FAILED;
-    else
-        return MCU_NO_ERROR;
     Modify_SPI_Reg_bits(0x008B, MSB_LSB(8,1), bestCSW);
+
+    if (ReadCMP(false) != 0x2) // confirm VCO lock
+        return MCU_CGEN_TUNE_FAILED;
     return MCU_NO_ERROR;
 }
 
@@ -327,25 +344,6 @@ uint8_t SetFrequencySX(const bool tx, const float_type freq_Hz)
     if (canDeliverFrequency == false)
         return tx ? MCU_SXT_TUNE_FAILED : MCU_SXR_TUNE_FAILED;
     return MCU_NO_ERROR;
-}
-
-/** @brief Performs VCO tuning operations for CLKGEN, SXR, SXT modules
-    @param module module selection for tuning 0-cgen, 1-SXR, 2-SXT
-    @return 0-success, other-failure
-*/
-static uint8_t ReadCMP(const bool SX)
-{
-#ifdef __cplusplus
-    std::this_thread::sleep_for(std::chrono::microseconds(100));
-#else
-    TR0 = 0; //stop timer 0
-    TH0 = (gComparatorDelayCounter >> 8);
-    TL0 = (gComparatorDelayCounter & 0xFF);
-    TF0 = 0; // clear overflow
-    TR0 = 1; //start timer 0
-    while( !TF0 ); // wait for timer overflow
-#endif
-    return (uint8_t)Get_SPI_Reg_bits(SX ? 0x0123 : 0x008C, MSB_LSB(13, 12));
 }
 
 uint8_t TuneVCO(bool SX) // 0-cgen, 1-SXR, 2-SXT
