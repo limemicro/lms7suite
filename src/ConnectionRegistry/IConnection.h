@@ -58,6 +58,11 @@ struct LIME_API DeviceInfo
 };
 
 /*!
+ * Convenient type alias for fast and comprehensive switching between underlying types.
+ */
+using host_time_t = uint64_t;
+
+/*!
  * IConnection is the interface class for a device with 1 or more Lime RFICs.
  * The LMS7002M driver class calls into IConnection to interface with the hardware
  * to implement high level functions on top of low-level SPI and GPIO.
@@ -157,23 +162,24 @@ public:
     @param length       number of bytes to read
     @param epIndex      endpoint identifier?
     @param timeout_ms   timeout in milliseconds
+    @param ht [out]     host timestamp associated with the last sample
     */
     virtual int ResetStreamBuffers();
     virtual int GetBuffersCount()const;
     virtual int CheckStreamSize(int size)const;
     virtual int ReceiveData(char* buffer, int length, int epIndex, int timeout = 100);
     virtual int SendData(const char* buffer, int length, int epIndex, int timeout = 100);
-    
+
     virtual int BeginDataSending(const char* buffer, uint32_t length, int ep);
     virtual bool WaitForSending(int contextHandle, uint32_t timeout_ms);
     virtual int FinishDataSending(const char* buffer, uint32_t length, int contextHandle);
     virtual void AbortSending(int ep){};
-    
+
     virtual int BeginDataReading(char* buffer, uint32_t length, int ep);
     virtual bool WaitForReading(int contextHandle, unsigned int timeout_ms);
-    virtual int FinishDataReading(char* buffer, uint32_t length, int contextHandle);
+    virtual int FinishDataReading(char* buffer, uint32_t length, int contextHandle, host_time_t * ht = nullptr);
     virtual void AbortReading(int ep){};
-    
+
     /***********************************************************************
      * Programming API
      **********************************************************************/

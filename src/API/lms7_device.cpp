@@ -1867,6 +1867,11 @@ void LMS7_Device::SetHardwareTimestamp(const uint64_t now)
     mStreamers[0]->SetHardwareTimestamp(now);
 }
 
+void LMS7_Device::GetRelativeTimestamp(uint64_t &hw_time, host_time_t &host_time) const
+{
+    mStreamers[0]->GetRelativeTimestamp(hw_time, host_time);
+}
+
 int LMS7_Device::MCU_AGCStart(uint32_t wantedRSSI)
 {
     lime::MCU_BD *mcu = lms_list.at(lms_chip_id)->GetMCUControls();

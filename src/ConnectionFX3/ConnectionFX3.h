@@ -80,6 +80,7 @@ public:
     std::mutex transferLock;
     std::condition_variable cv;
 #endif
+    host_time_t ht;
 };
 
 class ConnectionFX3 : public LMS64CProtocol
@@ -106,7 +107,7 @@ protected:
 
     int BeginDataReading(char* buffer, uint32_t length, int ep) override;
     bool WaitForReading(int contextHandle, unsigned int timeout_ms) override;
-    int FinishDataReading(char* buffer, uint32_t length, int contextHandle) override;
+    int FinishDataReading(char* buffer, uint32_t length, int contextHandle, host_time_t * ht = nullptr) override;
     void AbortReading(int ep) override;
 
     int BeginDataSending(const char* buffer, uint32_t length, int ep) override;

@@ -49,7 +49,7 @@ protected:
 
     int BeginDataReading(char* buffer, uint32_t length, int ep) override;
     bool WaitForReading(int contextHandle, unsigned int timeout_ms) override;
-    int FinishDataReading(char* buffer, uint32_t length, int contextHandle) override;
+    int FinishDataReading(char* buffer, uint32_t length, int contextHandle, host_time_t * ht = nullptr) override;
     void AbortReading(int epIndex);
 
     int BeginDataSending(const char* buffer, uint32_t length, int ep) override;

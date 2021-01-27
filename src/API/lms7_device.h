@@ -94,6 +94,7 @@ public:
     int DestroyStream(lime::StreamChannel* streamID);
     uint64_t GetHardwareTimestamp(void) const;
     void SetHardwareTimestamp(const uint64_t now);
+    void GetRelativeTimestamp(uint64_t &, host_time_t &) const;
 
     int MCU_AGCStart(uint32_t wantedRSSI);
     int MCU_AGCStop();

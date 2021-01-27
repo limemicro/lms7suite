@@ -418,6 +418,7 @@ void callback_libusbtransfer(libusb_transfer *trans)
         break;
     case LIBUSB_TRANSFER_COMPLETED:
         context->bytesXfered = trans->actual_length;
+        context->ht = std::chrono::time_point_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
         context->done.store(true);
         break;
     case LIBUSB_TRANSFER_ERROR:
@@ -524,10 +525,11 @@ bool ConnectionFX3::WaitForReading(int contextHandle, unsigned int timeout_ms)
 	@param contextHandle handle of which context to finish
 	@return negative values failure, positive number of bytes received
 */
-int ConnectionFX3::FinishDataReading(char *buffer, uint32_t length, int contextHandle)
+int ConnectionFX3::FinishDataReading(char *buffer, uint32_t length, int contextHandle, host_time_t * ht)
 {
     if(contextHandle >= 0 && contexts[contextHandle].used == true)
     {
+    if (ht) * ht = contexts[contextHandle].ht;
     #ifndef __unix__
     int status = 0;
     long len = length;

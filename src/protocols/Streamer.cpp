@@ -299,6 +299,11 @@ void Streamer::SetHardwareTimestamp(const uint64_t now)
     mTimestampOffset = now - rxLastTimestamp.load(std::memory_order_relaxed);
 }
 
+void Streamer::GetRelativeTimestamp(uint64_t &hw_time, host_time_t &host_time) const
+{
+    relTimestamp.Get(hw_time, host_time);
+}
+
 void Streamer::RstRxIQGen()
 {
     uint32_t data[16];
@@ -835,11 +840,12 @@ void Streamer::ReceivePacketsLoop()
     while (terminateRx.load(std::memory_order_relaxed) == false)
     {
         int32_t bytesReceived = 0;
+        host_time_t ht;
         if(handles[bi] >= 0)
         {
             if (dataPort->WaitForReading(handles[bi], 1000) == true)
             {
-                bytesReceived = dataPort->FinishDataReading(&buffers[bi*bufferSize], bufferSize, handles[bi]);
+                bytesReceived = dataPort->FinishDataReading(&buffers[bi*bufferSize], bufferSize, handles[bi], &ht);
                 totalBytesReceived += bytesReceived;
             }
             else
@@ -876,6 +882,7 @@ void Streamer::ReceivePacketsLoop()
             }
             prevTs = pkt[pktIndex].counter;
             rxLastTimestamp.store(prevTs, std::memory_order_relaxed);
+            relTimestamp.Set(prevTs, ht);
             //parse samples
             std::vector<complex16_t*> dest(chCount);
             for(uint8_t c=0; c<chCount; ++c)

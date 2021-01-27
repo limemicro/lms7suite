@@ -656,7 +656,7 @@ bool ConnectionXillybus::WaitForReading(int contextHandle, unsigned int timeout_
 {
     return true;
 }
-int ConnectionXillybus::FinishDataReading(char* buffer, uint32_t length, int contextHandle)
+int ConnectionXillybus::FinishDataReading(char* buffer, uint32_t length, int contextHandle, host_time_t * ht)
 {
     return ReceiveData(buffer, length, contextHandle, 3000);
 }

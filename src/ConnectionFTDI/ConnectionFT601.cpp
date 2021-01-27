@@ -495,7 +495,7 @@ bool ConnectionFT601::WaitForReading(int contextHandle, unsigned int timeout_ms)
 @param contextHandle handle of which context to finish
 @return false failure, true number of bytes received
 */
-int ConnectionFT601::FinishDataReading(char *buffer, uint32_t length, int contextHandle)
+int ConnectionFT601::FinishDataReading(char *buffer, uint32_t length, int contextHandle, host_time_t * ht)
 {
     if(contextHandle >= 0 && contexts[contextHandle].used == true)
     {

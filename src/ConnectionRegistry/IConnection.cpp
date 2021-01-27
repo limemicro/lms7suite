@@ -102,7 +102,7 @@ bool IConnection::WaitForReading(int contextHandle, unsigned int timeout_ms)
 {
     return true;
 }
-int IConnection::FinishDataReading(char* buffer, uint32_t length, int contextHandle)
+int IConnection::FinishDataReading(char* buffer, uint32_t length, int contextHandle, host_time_t * ht)
 {
     return 0;
 }
