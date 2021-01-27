@@ -542,15 +542,8 @@ int LMS64CProtocol::ProgramWrite(const char *data_src, const size_t length, cons
     eCMD_LMS cmd;
     if(device != FPGA)
         cmd = CMD_MEMORY_WR;
-    else if(device == FPGA)
-        cmd = CMD_ALTERA_FPGA_GW_WR;
     else
-    {
-        sprintf(progressMsg, "Programming failed! Target device not supported");
-        if(callback)
-            callback(bytesSent, length, progressMsg);
-        return ReportError(ENOTSUP, progressMsg);
-    }
+        cmd = CMD_ALTERA_FPGA_GW_WR;
 
     unsigned char ctrbuf[64];
     unsigned char inbuf[64];
