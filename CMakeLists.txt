@@ -171,6 +171,11 @@ if (ENABLE_NEW_GAIN_BEHAVIOUR)
     add_definitions(-DNEW_GAIN_BEHAVIOUR)
 endif()
 
+if (CMAKE_SYSTEM_NAME MATCHES "BSD")
+    include_directories("/usr/local/include")
+    add_definitions(-D__unix__=1) #we use this for unix detection, but clang does not define it
+endif()
+
 ########################################################################
 # rpath setup - http://www.cmake.org/Wiki/CMake_RPATH_handling
 ########################################################################
