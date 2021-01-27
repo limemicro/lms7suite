@@ -31,6 +31,10 @@
 #include <Winsock.h>
 #endif // LINUX
 
+#if defined(__FreeBSD__)
+#include <sys/socket.h>
+#endif
+
 using namespace std;
 using namespace lime;
 
