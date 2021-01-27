@@ -22,7 +22,7 @@ endif()
 add_custom_command(OUTPUT LimeSuite.oct LimeSuite.o
     ALL
     COMMAND ${OCTAVE_MKOCTFILE_EXECUTABLE}
-    ARGS -I${PROJECT_SOURCE_DIR}/src/lime ${CMAKE_CURRENT_SOURCE_DIR}/LimeSuite.cc -L$<TARGET_SONAME_FILE_DIR:LimeSuite> -lLimeSuite
+    ARGS -I${PROJECT_SOURCE_DIR}/src/lime ${CMAKE_CURRENT_SOURCE_DIR}/LimeSuite.cc -L$<TARGET_FILE_DIR:LimeSuite> -lLimeSuite
     COMMENT "Building LimeSuite Octave plugin"
     DEPENDS LimeSuite
 )
