@@ -83,6 +83,13 @@ else()
     set(X86 FALSE)
 endif()
 
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64")
+        set(RV64 TRUE)
+else()
+        set(RV64 FALSE)
+endif()
+
+
 if(CMAKE_COMPILER_IS_GNUCXX)
 
     #enable C++11 on older versions of cmake
@@ -115,6 +122,9 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     endif()
     if ("${CMAKE_INSTALL_PREFIX}" STREQUAL "/usr" AND X86)
         set(DEFAULT_SIMD_FLAGS "SSE3")
+    endif()
+    if(RV64)
+        set(DEFAULT_SIMD_FLAGS "rv64")
     endif()
 
     SET(ENABLE_SIMD_FLAGS "${DEFAULT_SIMD_FLAGS}" CACHE STRING "Set compiler SIMD flags")
